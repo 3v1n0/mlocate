@@ -208,7 +208,7 @@ transliterate_string (const char *str)
   inbuf = (char *) str;
   inlen = 1;
   transliteratedlen = 0;
-  outleft = strrlen + (nonasciibytes * 5);
+  outleft = strrlen + nonasciibytes;
   outbuf = xmalloc (outleft);
   outptr = outbuf;
 
@@ -227,6 +227,12 @@ transliterate_string (const char *str)
 	  if (errno == EILSEQ || errno == EINVAL)
 	    {
 	      inlen += 1;
+	      continue;
+	    }
+	  else if (errno == E2BIG)
+	    {
+	      outleft += 5;
+	      outbuf = xrealloc (outbuf, (outptr - outbuf) + outleft);
 	      continue;
 	    }
 	  error (0, errno, _("Impossible to transliterate string %s"), str);
