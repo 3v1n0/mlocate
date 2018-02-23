@@ -51,6 +51,7 @@ Author: Miloslav Trmac <mitr@redhat.com> */
 #include "db.h"
 #include "lib.h"
 
+#define FNMATCH_CHARS "*?[\\]"
 #define BASIC_REGEX_META_CHARS ".^$*[]\\-"
 #define EXTENDED_REGEX_META_CHARS BASIC_REGEX_META_CHARS "{}|+?()"
 
@@ -69,6 +70,9 @@ static bool conf_ignore_case; /* = false; */
 
 /* Ignore accents when matching patterns */
 static bool conf_transliterate; /* = false; */
+
+/* Ignore puncts and spaces when matching patterns */
+static bool conf_ingore_separators; /* = false; */
 
 /* Return only files that match all patterns */
 static bool conf_match_all_patterns; /* = false; */
@@ -362,6 +366,58 @@ transliterate_string (const char *str)
 }
 #endif
 
+/* Remove repeated punct or spaces from string and replaces
+   them using a space*/
+static char *
+compress_string_separators (const char *str, bool is_pattern)
+{
+  size_t strippedlen;
+  size_t i;
+  char *outbuf;
+  bool first;
+  bool changed;
+
+  changed = false;
+  first = false;
+  strippedlen = 0;
+  outbuf = xmalloc (strlen (str) + 1);
+
+    for (i = 0; str[i]; i++)
+      {
+	char cnt;
+
+	cnt = str[i];
+	if (isspace (cnt) || (ispunct (cnt) && cnt != '@' &&
+			      (!is_pattern || strchr (FNMATCH_CHARS, cnt) == NULL)))
+	  {
+	    if (first != false)
+	      {
+		changed = true;
+		continue;
+	      }
+	    if (cnt != ' ')
+	      {
+		cnt = ' ';
+		changed = true;
+	      }
+	    first = true;
+	  }
+	else
+	  first = false;
+
+	outbuf[strippedlen++] = cnt;
+      }
+
+    if (!changed)
+      {
+	free (outbuf);
+	return NULL;
+      }
+
+    outbuf[strippedlen] = '\0';
+    return outbuf;
+}
+
 /* Write STRING to stdout, replace unprintable characters with '?' */
 static void
 write_quoted (const char *string)
@@ -631,28 +687,32 @@ handle_path (const char *path, int *visible)
   else
     matching = path;
   if (!string_matches_pattern (matching))
-#if !HAVE_ICONV
-    goto done;
-#else
     {
+      char *altered_matching;
       bool matched;
 
+      altered_matching = NULL;
       matched = false;
+      if (conf_ingore_separators != false)
+	altered_matching = compress_string_separators (matching, false);
+#if HAVE_ICONV
       if (conf_transliterate != false)
 	{
-	  char *transliterated;
-
-	  transliterated = transliterate_string (matching);
-	  if (transliterated)
-	    {
-	      matched = string_matches_pattern (transliterated);
-	      free (transliterated);
-	    }
+	  char *old_altered = altered_matching;
+	  if (altered_matching)
+	    matching = altered_matching;
+	  altered_matching = transliterate_string (matching);
+	  free (old_altered);
+	}
+#endif
+      if (altered_matching != NULL)
+	{
+	  matched = string_matches_pattern (altered_matching);
+	  free (altered_matching);
 	}
       if (!matched)
 	goto done;
     }
-#endif
   /* Visible? */
   if (*visible == -1)
     *visible = check_directory_perms (path) == 0;
@@ -852,6 +912,8 @@ help (void)
 	    "  -h, --help             print this help\n"
 	    "  -i, --ignore-case      ignore case distinctions when matching "
 	    "patterns\n"
+	    "  -p, --ignore-spaces    ignore punctuation and spaces when "
+	    "matching patterns\n"
 #if HAVE_ICONV
 	    "  -t, --transliterate    ignore accents using iconv "
 	    "transliteration when\n"
@@ -894,6 +956,7 @@ parse_options (int argc, char *argv[])
       { "follow", no_argument, NULL, 'L' },
       { "help", no_argument, NULL, 'h' },
       { "ignore-case", no_argument, NULL, 'i' },
+      { "ignore-spaces", no_argument, NULL, 'p' },
       { "transliterate", no_argument, NULL, 't' },
       { "limit", required_argument, NULL, 'l' },
       { "mmap", no_argument, NULL, 'm' },
@@ -917,7 +980,7 @@ parse_options (int argc, char *argv[])
     {
       int opt, idx;
 
-      opt = getopt_long (argc, argv, "0AHPLSVbcd:ehitl:mn:qr:sw", options, &idx);
+      opt = getopt_long (argc, argv, "0AHPLSVbcd:ehitpl:mn:qr:sw", options, &idx);
       switch (opt)
 	{
 	case -1:
@@ -1002,6 +1065,10 @@ parse_options (int argc, char *argv[])
 	  conf_transliterate = true;
 	  break;
 
+	case 'p':
+	  conf_ingore_separators = true;
+	  break;
+
 	case 'l': case 'n':
 	  {
 	    char *end;
@@ -1052,6 +1119,9 @@ parse_options (int argc, char *argv[])
     error (EXIT_FAILURE, 0,
 	   _("non-option arguments are not allowed with --%s"),
 	   conf_statistics != false ? "statistics" : "regexp");
+  if (conf_ingore_separators != false && conf_match_regexp != false)
+    error (EXIT_FAILURE, 0,
+	   _("ignore-spaces is not supported when using regexp"));
   if (conf_transliterate != false)
     {
 #if HAVE_ICONV
@@ -1077,21 +1147,30 @@ parse_arguments (int argc, char *argv[])
     string_list_append (&conf_patterns, argv[i]);
   if (conf_statistics == false && conf_patterns.len == 0)
     error (EXIT_FAILURE, 0, _("no pattern to search for specified"));
-#if HAVE_ICONV
-  if (conf_transliterate != false)
+  if (conf_transliterate != false || conf_ingore_separators != false)
     {
+      char *altered_pattern;
       size_t patterns_len = conf_patterns.len;
-      char *transliterated;
 
       for (i = 0; i < patterns_len; i++)
 	{
-	  transliterated = transliterate_string (conf_patterns.entries[i]);
-
-	  if (transliterated)
-	    string_list_append (&conf_patterns, transliterated);
+	  if (conf_ingore_separators != false)
+	    {
+	      altered_pattern =
+		compress_string_separators (conf_patterns.entries[i], true);
+	      if (altered_pattern)
+		conf_patterns.entries[i] = altered_pattern;
+	    }
+#if HAVE_ICONV
+	  if (conf_transliterate != false)
+	    {
+	      altered_pattern = transliterate_string (conf_patterns.entries[i]);
+	      if (altered_pattern)
+		string_list_append (&conf_patterns, altered_pattern);
+	    }
+#endif
 	}
     }
-#endif
   conf_patterns.entries = xnrealloc (conf_patterns.entries, conf_patterns.len,
 				     sizeof (*conf_patterns.entries));
   if (conf_match_regexp != false)
@@ -1129,7 +1208,7 @@ parse_arguments (int argc, char *argv[])
       for (i = 0; i < conf_patterns.len; i++)
 	{
 	  conf_patterns_simple[i] = strpbrk (conf_patterns.entries[i],
-					     "*?[\\]") == NULL;
+					     FNMATCH_CHARS) == NULL;
 	  if (conf_patterns_simple[i] != false)
 	    conf_have_simple_pattern = true;
 	}

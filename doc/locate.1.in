@@ -126,6 +126,10 @@ and exit successfully.
 Ignore case distinctions when matching patterns.
 
 .TP
+\fB\-p\fR, \fB\-\-ignore\-spaces\fR
+Ignore punctuation and spaces when matching patterns.
+
+.TP
 \fB\-t\fR, \fB\-\-transliterate\fR
 Ignore accents using iconv transliteration when matching patterns.
 
