@@ -1,0 +1,8 @@
+/obj-*
+/*-stamp
+
+/debian/tmp
+/debian/files
+/debian/mlocate
+/debian/*.substvars
+/debian/*.debhelper.log

@@ -1,0 +1,14 @@
+#! /usr/bin/make -f
+
+%:
+	dh $@ --builddirectory=build
+
+override_dh_auto_configure:
+	dh_auto_configure -- --localstatedir=/var/lib
+
+override_dh_install:
+	dh_install --fail-missing
+	mv debian/mlocate/usr/bin/locate debian/mlocate/usr/bin/mlocate
+	mv debian/mlocate/usr/bin/updatedb debian/mlocate/usr/bin/updatedb.mlocate
+	mv debian/mlocate/usr/share/man/man1/locate.1 debian/mlocate/usr/share/man/man1/mlocate.1
+	mv debian/mlocate/usr/share/man/man8/updatedb.8 debian/mlocate/usr/share/man/man8/updatedb.mlocate.8
