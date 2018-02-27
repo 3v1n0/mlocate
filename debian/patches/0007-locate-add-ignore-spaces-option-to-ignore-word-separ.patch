@@ -1,0 +1,242 @@
+From: =?utf-8?b?Ik1hcmNvIFRyZXZpc2FuIChUcmV2acOxbyki?= <mail@3v1n0.net>
+Date: Fri, 23 Feb 2018 18:28:51 +0100
+Subject: locate: add --ignore-spaces option to ignore word separators
+
+It allows to locate in files ignoring in-words separators,
+such as punctuation and spaces, so searching "foo-bar" is
+like searching for "foo bar", "foo_bar" or "foo?bar".
+
+This is not compatible with regex.
+---
+ doc/locate.1.in |   4 ++
+ src/locate.c    | 122 +++++++++++++++++++++++++++++++++++++++++++++-----------
+ 2 files changed, 103 insertions(+), 23 deletions(-)
+
+diff --git a/doc/locate.1.in b/doc/locate.1.in
+index 9c2e629..307a2b2 100644
+--- a/doc/locate.1.in
++++ b/doc/locate.1.in
+@@ -126,6 +126,10 @@ and exit successfully.
+ Ignore case distinctions when matching patterns.
+ 
+ .TP
++\fB\-p\fR, \fB\-\-ignore\-spaces\fR
++Ignore punctuation and spaces when matching patterns.
++
++.TP
+ \fB\-t\fR, \fB\-\-transliterate\fR
+ Ignore accents using iconv transliteration when matching patterns.
+ 
+diff --git a/src/locate.c b/src/locate.c
+index df18a0d..d4a6e9d 100644
+--- a/src/locate.c
++++ b/src/locate.c
+@@ -70,6 +70,9 @@ static bool conf_ignore_case; /* = false; */
+ /* Ignore accents when matching patterns */
+ static bool conf_transliterate; /* = false; */
+ 
++/* Ignore puncts and spaces when matching patterns */
++static bool conf_ingore_separators; /* = false; */
++
+ /* Return only files that match all patterns */
+ static bool conf_match_all_patterns; /* = false; */
+ 
+@@ -329,7 +332,7 @@ transliterate_string (const char *str)
+ 	      escaped = escape_regex (converted, convertedlen, &escaped_len);
+ 
+ 	      if (escaped)
+-	        {
++		{
+ 		  if (escaped_len > outleft)
+ 		    {
+ 		      outleft += (escaped_len - outleft);
+@@ -343,7 +346,7 @@ transliterate_string (const char *str)
+ 		  outptr += (escaped_len - convertedlen);
+ 		  outleft -= (escaped_len - convertedlen);
+ 		  convertedlen = escaped_len;
+-	        }
++		}
+ 	    }
+ 	  changed = true;
+ 	}
+@@ -362,6 +365,57 @@ transliterate_string (const char *str)
+ }
+ #endif
+ 
++/* Remove repeated punct or spaces from string and replaces
++   them using a space*/
++static char *
++compress_string_separators (const char *str)
++{
++  size_t strippedlen;
++  size_t i;
++  char *outbuf;
++  bool first;
++  bool changed;
++
++  changed = false;
++  first = false;
++  strippedlen = 0;
++  outbuf = xmalloc (strlen (str) + 1);
++
++    for (i = 0; str[i]; i++)
++      {
++	char cnt;
++
++	cnt = str[i];
++	if (isspace (cnt) || (ispunct (cnt) && cnt != '@'))
++	  {
++	    if (first != false)
++	      {
++		changed = true;
++		continue;
++	      }
++	    if (cnt != ' ')
++	      {
++		cnt = ' ';
++		changed = true;
++	      }
++	    first = true;
++	  }
++	else
++	  first = false;
++
++	outbuf[strippedlen++] = cnt;
++      }
++
++    if (!changed)
++      {
++	free (outbuf);
++	return NULL;
++      }
++
++    outbuf[strippedlen] = '\0';
++    return outbuf;
++}
++
+ /* Write STRING to stdout, replace unprintable characters with '?' */
+ static void
+ write_quoted (const char *string)
+@@ -631,28 +685,32 @@ handle_path (const char *path, int *visible)
+   else
+     matching = path;
+   if (!string_matches_pattern (matching))
+-#if !HAVE_ICONV
+-    goto done;
+-#else
+     {
++      char *altered_matching;
+       bool matched;
+ 
++      altered_matching = NULL;
+       matched = false;
++      if (conf_ingore_separators != false)
++	altered_matching = compress_string_separators (matching);
++#if HAVE_ICONV
+       if (conf_transliterate != false)
+ 	{
+-	  char *transliterated;
+-
+-	  transliterated = transliterate_string (matching);
+-	  if (transliterated)
+-	    {
+-	      matched = string_matches_pattern (transliterated);
+-	      free (transliterated);
+-	    }
++	  char *old_altered = altered_matching;
++	  if (altered_matching)
++	    matching = altered_matching;
++	  altered_matching = transliterate_string (matching);
++	  free (old_altered);
++	}
++#endif
++      if (altered_matching != NULL)
++	{
++	  matched = string_matches_pattern (altered_matching);
++	  free (altered_matching);
+ 	}
+       if (!matched)
+ 	goto done;
+     }
+-#endif
+   /* Visible? */
+   if (*visible == -1)
+     *visible = check_directory_perms (path) == 0;
+@@ -856,6 +914,8 @@ help (void)
+ 	    "  -t, --transliterate    ignore accents using iconv "
+ 	    "transliteration when matching patterns\n"
+ #endif
++	    "  -p, --ignore-spaces    ignore punctuation and spaces when "
++	    "matching patterns\n"
+ 	    "  -l, --limit, -n LIMIT  limit output (or counting) to LIMIT "
+ 	    "entries\n"
+ 	    "  -m, --mmap             ignored, for backward compatibility\n"
+@@ -916,7 +976,7 @@ parse_options (int argc, char *argv[])
+     {
+       int opt, idx;
+ 
+-      opt = getopt_long (argc, argv, "0AHPLSVbcd:ehitl:mn:qr:sw", options, &idx);
++      opt = getopt_long (argc, argv, "0AHPLSVbcd:ehitpl:mn:qr:sw", options, &idx);
+       switch (opt)
+ 	{
+ 	case -1:
+@@ -1001,6 +1061,10 @@ parse_options (int argc, char *argv[])
+ 	  conf_transliterate = true;
+ 	  break;
+ 
++	case 'p':
++	  conf_ingore_separators = true;
++	  break;
++
+ 	case 'l': case 'n':
+ 	  {
+ 	    char *end;
+@@ -1051,6 +1115,9 @@ parse_options (int argc, char *argv[])
+     error (EXIT_FAILURE, 0,
+ 	   _("non-option arguments are not allowed with --%s"),
+ 	   conf_statistics != false ? "statistics" : "regexp");
++  if (conf_ingore_separators != false && conf_match_regexp != false)
++    error (EXIT_FAILURE, 0,
++	   _("ignore-spaces is not supported when using regexp"));
+   if (conf_transliterate != false)
+     {
+ #if HAVE_ICONV
+@@ -1076,21 +1143,30 @@ parse_arguments (int argc, char *argv[])
+     string_list_append (&conf_patterns, argv[i]);
+   if (conf_statistics == false && conf_patterns.len == 0)
+     error (EXIT_FAILURE, 0, _("no pattern to search for specified"));
+-#if HAVE_ICONV
+-  if (conf_transliterate != false)
++  if (conf_transliterate != false || conf_ingore_separators != false)
+     {
++      char *altered_pattern;
+       size_t patterns_len = conf_patterns.len;
+-      char *transliterated;
+ 
+       for (i = 0; i < patterns_len; i++)
+ 	{
+-	  transliterated = transliterate_string (conf_patterns.entries[i]);
+-
+-	  if (transliterated)
+-	    string_list_append (&conf_patterns, transliterated);
++	  if (conf_ingore_separators != false)
++	    {
++	      altered_pattern =
++		compress_string_separators (conf_patterns.entries[i]);
++	      if (altered_pattern)
++		conf_patterns.entries[i] = altered_pattern;
++	    }
++#if HAVE_ICONV
++	  if (conf_transliterate != false)
++	    {
++	      altered_pattern = transliterate_string (conf_patterns.entries[i]);
++	      if (altered_pattern)
++		string_list_append (&conf_patterns, altered_pattern);
++	    }
++#endif
+ 	}
+     }
+-#endif
+   conf_patterns.entries = xnrealloc (conf_patterns.entries, conf_patterns.len,
+ 				     sizeof (*conf_patterns.entries));
+   if (conf_match_regexp != false)

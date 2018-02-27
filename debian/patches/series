@@ -1,0 +1,7 @@
+0001-Call-AM_PROG_AR.patch
+0002-Fix-typos-in-roff-directives.patch
+0003-Update-gettext-version-to-silence-autotools-warnings.patch
+0004-Fix-a-typo-in-temporary-umask-value.patch
+0005-Rename-db.h-include-guard-to-be-more-specific.patch
+0006-locate-add-transliterate-support-using-iconv-to-matc.patch
+0007-locate-add-ignore-spaces-option-to-ignore-word-separ.patch

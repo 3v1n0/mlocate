@@ -1,0 +1,39 @@
+From: =?utf-8?q?Miloslav_Trma=C4=8D?= <mitr@redhat.com>
+Date: Mon, 14 Nov 2016 18:06:11 +0100
+Subject: Rename db.h include guard to be more specific
+
+https://fedorahosted.org/mlocate/ticket/37
+---
+ ChangeLog | 6 ++++++
+ src/db.h  | 4 ++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index 9bd074b..ca4b2bb 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,9 @@
++2016-11-14  Miloslav Trmač  <mitr@redhat.com>
++
++	* src/db.h (DB_H__): Rename to...
++	(MLOCATE_DB_H__): ... to minimize risk of conflicts when the header file
++	is installed to /usr/include.
++
+ 2013-12-05  Miloslav Trmač  <mitr@redhat.com>
+ 
+ 	* src/updatedb.c (new_db_setup_permissions): Fix a typo in the temporary
+diff --git a/src/db.h b/src/db.h
+index d3a3eff..39f609d 100644
+--- a/src/db.h
++++ b/src/db.h
+@@ -13,8 +13,8 @@ PARTICULAR PURPOSE.
+ 
+ Author: Miloslav Trmac <mitr@redhat.com> */
+ 
+-#ifndef DB_H__
+-#define DB_H__
++#ifndef MLOCATE_DB_H__
++#define MLOCATE_DB_H__
+ 
+ #include <stdint.h>
+ 

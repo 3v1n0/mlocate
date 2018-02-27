@@ -1,0 +1,35 @@
+From: =?utf-8?q?Miloslav_Trma=C4=8D?= <mitr@redhat.com>
+Date: Mon, 8 Jul 2013 22:34:48 +0200
+Subject: Update gettext version to silence autotools warnings
+
+---
+ ChangeLog    | 5 +++++
+ configure.ac | 2 +-
+ 2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index e210a27..f570540 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,8 @@
++2013-07-08  Miloslav Trmač  <mitr@redhat.com>
++
++	* configure.ac: Update gettext version, which silences some autotools
++	warnings.
++
+ 2013-06-18  Miloslav Trmač  <mitr@redhat.com>
+ 
+ 	* doc/mlocate.db.5
+diff --git a/configure.ac b/configure.ac
+index 04de37e..af1be52 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -37,7 +37,7 @@ gl_INIT
+ 
+ # Checks for libraries.
+ AM_GNU_GETTEXT([external], [need-ngettext])
+-AM_GNU_GETTEXT_VERSION([0.17])
++AM_GNU_GETTEXT_VERSION([0.18.2])
+ 
+ # Checks for header files.
+ 

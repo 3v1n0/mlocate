@@ -1,0 +1,36 @@
+From: =?utf-8?q?Miloslav_Trma=C4=8D?= <mitr@redhat.com>
+Date: Thu, 5 Dec 2013 00:18:24 +0100
+Subject: Fix a typo in temporary umask value
+
+Reported in https://fedorahosted.org/mlocate/ticket/27 .
+---
+ ChangeLog      | 5 +++++
+ src/updatedb.c | 2 +-
+ 2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index f570540..9bd074b 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,8 @@
++2013-12-05  Miloslav Trmač  <mitr@redhat.com>
++
++	* src/updatedb.c (new_db_setup_permissions): Fix a typo in the temporary
++	umask value.
++
+ 2013-07-08  Miloslav Trmač  <mitr@redhat.com>
+ 
+ 	* configure.ac: Update gettext version, which silences some autotools
+diff --git a/src/updatedb.c b/src/updatedb.c
+index 7cfa22d..1a177be 100644
+--- a/src/updatedb.c
++++ b/src/updatedb.c
+@@ -957,7 +957,7 @@ new_db_setup_permissions (void)
+     {
+       mode_t mask;
+ 
+-      mask = umask (S_IRWXU | S_IRWXG | S_IRWXG);
++      mask = umask (S_IRWXU | S_IRWXG | S_IRWXO);
+       umask (mask);
+       mode = ((S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
+ 	      & ~mask);
