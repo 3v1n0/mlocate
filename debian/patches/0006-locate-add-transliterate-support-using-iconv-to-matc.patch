@@ -6,6 +6,9 @@ Subject: [PATCH] locate: add --transliterate support using iconv to match
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
+Forwarded: https://pagure.io/mlocate/pull-request/41
+Bug: https://pagure.io/mlocate/issue/40
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/mlocate/+bug/1752148
 
 When enabled all search parameters and paths are transliterated
 and used for matching.

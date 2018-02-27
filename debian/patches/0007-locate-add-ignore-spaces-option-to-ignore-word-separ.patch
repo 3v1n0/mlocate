@@ -1,6 +1,8 @@
 From: =?utf-8?b?Ik1hcmNvIFRyZXZpc2FuIChUcmV2acOxbyki?= <mail@3v1n0.net>
 Date: Fri, 23 Feb 2018 18:28:51 +0100
 Subject: locate: add --ignore-spaces option to ignore word separators
+Forwarded: https://pagure.io/mlocate/pull-request/42
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/mlocate/+bug/1752148
 
 It allows to locate in files ignoring in-words separators,
 such as punctuation and spaces, so searching "foo-bar" is

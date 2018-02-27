@@ -1,3 +1,18 @@
+mlocate (0.26-2ubuntu2) UNRELEASED; urgency=medium
+
+  * Imported patches from upstream:
+    - debian/patches/0001-Call-AM_PROG_AR.patch
+    - debian/patches/0002-Fix-typos-in-roff-directives.patch
+    - debian/patches/0003-Update-gettext-version-to-silence-autotools-warnings.patch
+    - debian/patches/0004-Fix-a-typo-in-temporary-umask-value.patch
+    - debian/patches/0005-Rename-db.h-include-guard-to-be-more-specific.patch
+  * Added patches to improve matching of string (pending upstream review)
+    Fixes LP: #1752148:
+    - debian/patches/0006-locate-add-transliterate-support-using-iconv-to-matc.patch
+    - debian/patches/0007-locate-add-ignore-spaces-option-to-ignore-word-separ.patch
+
+ -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Tue, 27 Feb 2018 19:25:40 +0100
+
 mlocate (0.26-2ubuntu1) artful; urgency=low
 
   * Merge from Debian unstable.  Remaining changes:
